@@ -87,6 +87,21 @@ func newMachineScope(params machineScopeParams) (*machineScope, error) {
 		return nil, fmt.Errorf("failed to create vSphere session: %w", err)
 	}
 
+	// Story #20 (Epic #14): Validate privileges for component credentials
+	// Only validate when using component credentials to avoid performance impact
+	_, componentCredsErr := getComponentCredentials(params.client, providerSpec.Workspace.Server)
+	if componentCredsErr == nil {
+		// Component credentials are being used, validate privileges
+		klog.V(4).Infof("%v: validating vSphere privileges for component credentials", params.machine.GetName())
+		validator := NewPrivilegeValidator(authSession.Client.Client)
+		validationResult, err := validator.ValidateMachineAPIPrivileges(params.Context)
+		if err != nil {
+			klog.Warningf("%v: privilege validation failed: %v", params.machine.GetName(), err)
+		} else if !validationResult.Valid {
+			klog.Warningf("%v: insufficient privileges: %v", params.machine.GetName(), validationResult.MissingPrivileges)
+		}
+	}
+
 	return &machineScope{
 		Context:                    params.Context,
 		client:                     params.client,
@@ -264,9 +279,35 @@ func (s *machineScope) GetUserData() ([]byte, error) {
 //	data:
 //	  vcsa.vmware.devcluster.openshift.com.username: base64 string
 //	  vcsa.vmware.devcluster.openshift.com.password: base64 string
+// getComponentCredentials attempts to read component-specific credentials from
+// the openshift-machine-api namespace (Story #20 - Epic #14)
+func getComponentCredentials(client runtimeclient.Client, vcenterServer string) (string, string, error) {
+	credReader := NewCredentialReader(client)
+	cred, err := credReader.GetCredentialsForVCenter(context.Background(), vcenterServer)
+	if err != nil {
+		return "", "", err
+	}
+	return cred.Username, cred.Password, nil
+}
+
 func getCredentialsSecret(client runtimeclient.Client, namespace string, spec machinev1.VSphereMachineProviderSpec) (string, string, error) {
+	// TODO: add provider spec validation logic and move this check there
+	if spec.Workspace == nil {
+		return "", "", errors.New("no workspace")
+	}
+
+	// Story #20 (Epic #14): Try component-specific credentials first
+	user, password, err := getComponentCredentials(client, spec.Workspace.Server)
+	if err == nil {
+		klog.V(4).Infof("Using component-specific credentials for vCenter: %s", spec.Workspace.Server)
+		return user, password, nil
+	}
+
+	klog.V(4).Infof("Component credentials not available for %s, trying provider spec credentials: %v", spec.Workspace.Server, err)
+
+	// Fall back to credentials from provider spec (existing behavior)
 	if spec.CredentialsSecret == nil {
-		return "", "", nil
+		return "", "", fmt.Errorf("no component credentials found and no credentials secret specified in provider spec")
 	}
 
 	var credentialsSecret apicorev1.Secret
@@ -278,11 +319,6 @@ func getCredentialsSecret(client runtimeclient.Client, namespace string, spec ma
 			return "", "", machinecontroller.InvalidMachineConfiguration("credentials secret %v/%v not found: %v", namespace, spec.CredentialsSecret.Name, err.Error())
 		}
 		return "", "", fmt.Errorf("error getting credentials secret %v/%v: %v", namespace, spec.CredentialsSecret.Name, err)
-	}
-
-	// TODO: add provider spec validation logic and move this check there
-	if spec.Workspace == nil {
-		return "", "", errors.New("no workspace")
 	}
 
 	credentialsSecretUser := fmt.Sprintf("%s.username", spec.Workspace.Server)
