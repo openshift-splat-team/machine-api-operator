@@ -1,100 +1,110 @@
-# AGENTS.md
+# machine-api-operator - AI Navigation
 
-This file provides guidance to AI Agents when working with the machine-api-operator project.
+**Repository:** https://github.com/openshift-splat-team/machine-api-operator
+**Last Updated:** 2026-05-01
 
-## Quick Reference
+---
 
-### Essential Commands
-```bash
-make build          # Build all binaries
-make test           # Run all tests (Ginkgo + envtest)
-make lint           # Run golangci-lint
-make fmt            # Format code
-make vet            # Run go vet
-make check          # Run all validations (lint, fmt, vet, test)
-make crds-sync      # Sync CRDs from vendored openshift/api
+## Quick Start
+
+This is **Tier 2** project-specific documentation for machine-api-operator.
+
+- **New to this project?** → Start with [Development Guide](ai-docs/machine-api-operator_DEVELOPMENT.md)
+- **Writing tests?** → See [Testing Guide](ai-docs/machine-api-operator_TESTING.md)
+- **Understanding architecture?** → Read [Components Overview](ai-docs/architecture/components.md)
+- **Need context on decisions?** → Browse [ADRs](ai-docs/decisions/)
+
+For **team-level** workflows, status transitions, and role responsibilities, see the team repository.
+
+---
+
+## CRITICAL: Retrieval Strategy
+
+**IMPORTANT**: Prefer retrieval-led reasoning over pre-training-led reasoning.
+
+When working on machine-api-operator:
+- ✅ **DO**: Read project-specific docs from `./ai-docs/` first
+- ✅ **DO**: Check development workflow in `./ai-docs/machine-api-operator_DEVELOPMENT.md`
+- ✅ **DO**: Understand architecture in `./ai-docs/architecture/components.md`
+- ✅ **DO**: Review ADRs for context on past decisions
+- ❌ **DON'T**: Rely solely on training data
+- ❌ **DON'T**: Guess at project architecture or conventions
+
+For team workflows (sprint process, status transitions, etc.), see `../../team/ai-docs/`.
+
+---
+
+## Quick Navigation by Task
+
+| Task | Start Here | Then Read |
+|------|-----------|-----------|
+| **Local development** | [Development Guide](ai-docs/machine-api-operator_DEVELOPMENT.md) | [Testing Guide](ai-docs/machine-api-operator_TESTING.md) |
+| **Running tests** | [Testing Guide](ai-docs/machine-api-operator_TESTING.md) | [Components](ai-docs/architecture/components.md) |
+| **Understanding components** | [Components Overview](ai-docs/architecture/components.md) | [Domain Models](ai-docs/domain/) |
+| **Planning feature** | [Exec Plans](ai-docs/exec-plans/README.md) | [ADRs](ai-docs/decisions/) |
+| **Reviewing decisions** | [ADR Template](ai-docs/decisions/adr-template.md) | Existing ADRs |
+
+---
+
+## Technology Stack
+
+**Languages:** Go  
+**Frameworks:** Kubernetes, controller-runtime  
+**Build Systems:** Make, Docker
+
+---
+
+## Documentation Structure
+
+```
+ai-docs/
+├── machine-api-operator_DEVELOPMENT.md  # Build, test, develop
+├── machine-api-operator_TESTING.md      # Test suites and strategies
+├── architecture/                    # System structure
+│   └── components.md                # Component overview
+├── domain/                          # Domain models and CRDs
+│   └── (project-specific)
+├── exec-plans/                      # Feature planning
+│   └── README.md
+├── decisions/                       # Architectural Decision Records
+│   ├── adr-template.md
+│   └── adr-NNNN-*.md
+└── references/                      # External references
+    └── ecosystem.md
 ```
 
-### Running Locally
-```bash
-./bin/machine-api-operator start --kubeconfig $KUBECONFIG --images-json=path/to/images.json
-```
+---
 
-## Project Overview
+## Knowledge Tiers
 
-The Machine API Operator (MAO) manages the lifecycle of Machine resources in OpenShift clusters, enabling declarative machine management across multiple cloud providers.
+**Tier 1: Platform-Wide** (Team repository)
+- Operator development patterns
+- Testing pyramid and practices
+- CI/CD workflows (Prow, GitHub Actions)
+- Team process (sprint, status transitions, roles)
 
-### Architecture
+→ See `../../team/ai-docs/` for team-level documentation
 
-| Binary | Location | Purpose |
-|--------|----------|---------|
-| machine-api-operator | `cmd/machine-api-operator/` | Main operator; deploys platform-specific controllers |
-| machineset | `cmd/machineset/` | MachineSet replica management |
-| machine-healthcheck | `cmd/machine-healthcheck/` | Health monitoring and remediation |
-| nodelink-controller | `cmd/nodelink-controller/` | Links Nodes ↔ Machines |
-| vsphere | `cmd/vsphere/` | VSphere machine controller |
-| machine-api-tests-ext | `cmd/machine-api-tests-ext/` | Extended E2E tests |
+**Tier 2: Project-Specific** (This repository)
+- machine-api-operator components and architecture
+- Project-specific development workflow
+- Test suites unique to this project
+- Architectural decisions for this project
 
-> **Note:** Other cloud providers (AWS, GCP, Azure) live in separate `machine-api-provider-*` repos.
+→ See `./ai-docs/` for project-level documentation
 
-### Key Packages
+---
 
-| Package | Purpose |
-|---------|---------|
-| `pkg/controller/machine/` | Machine lifecycle (create/delete instances, drain nodes, track phases) |
-| `pkg/controller/machineset/` | Replica management, delete policies (Random, Oldest, Newest) |
-| `pkg/controller/machinehealthcheck/` | Node condition monitoring, remediation triggers |
-| `pkg/controller/nodelink/` | Machine↔Node linking via providerID/IP, label/taint sync |
-| `pkg/controller/vsphere/` | VSphere actuator |
-| `pkg/operator/` | Platform detection, controller deployment, ClusterOperator status |
-| `pkg/webhooks/` | Admission webhooks for Machine/MachineSet validation and mutation |
+## Project Context
 
-### Key Patterns
-- CRDs: Machine, MachineSet, MachineHealthCheck
-- Uses controller-runtime from sigs.k8s.io
-- Vendored dependencies (`go mod vendor`, use `GOFLAGS=-mod=vendor`)
-- Feature gates controlled via OpenShift's featuregates mechanism
-- When bumping `github.com/openshift/api`, run `make crds-sync` to sync CRDs from `/vendor` to `/install` (CVO deploys from there)
+For team workflows, sprint process, and status transitions, see:
+- Team repository: `../../team/`
+- Team ai-docs: `../../team/ai-docs/`
+- Team workflows: `../../team/ai-docs/workflows/`
+- Status transitions: `../../team/ai-docs/statuses/`
 
-## Testing
+---
 
-```bash
-make test                    # All unit tests
-NO_DOCKER=1 make test        # Run locally without container
-make test-e2e                # E2E tests (requires KUBECONFIG)
-```
+**Navigation**: Start with [Development Guide](ai-docs/machine-api-operator_DEVELOPMENT.md) for project setup and workflow.
 
-### Running Specific Package Tests
-```bash
-TEST_PACKAGES="$(go list -f '{{ .Dir }}' ./pkg/controller/machine/...)" make unit
-```
-
-### Ginkgo Configuration
-- Default args: `-r -v --randomize-all --randomize-suites --keep-going --race --trace --timeout=10m`
-- Use `GINKGO_EXTRA_ARGS` to add arguments
-- Use `GINKGO_ARGS` to override defaults entirely
-
-### Test Patterns
-- Tests use **Ginkgo/Gomega** with **envtest** for K8s API simulation
-- Prefer **komega** over plain Gomega/Ginkgo where possible
-- Each controller has a `*_suite_test.go` for setup
-- Follow existing test patterns in the codebase
-
-### Container Engine
-- Defaults to `podman`, falls back to `docker`
-- `USE_DOCKER=1` to force Docker
-- `NO_DOCKER=1` to run locally without containers
-
-## Do
-
-- Run `make lint` before committing
-- Run `make test` to verify changes
-- Check `pkg/controller/<name>/` for controller logic
-- Look at existing controllers as patterns for new code
-
-## Do NOT
-
-- Edit files under `vendor/` directly
-- Add new cloud providers here (they belong in `machine-api-provider-*` repos)
-- Forget to run `go mod vendor` after changing dependencies
-- Skip running tests before submitting changes
+**GitHub**: https://github.com/openshift-splat-team/machine-api-operator
