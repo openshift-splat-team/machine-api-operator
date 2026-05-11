@@ -81,7 +81,7 @@ func TestNonVSphereCredentialsRequestsUnmodified(t *testing.T) {
 	for _, name := range nonVSphere {
 		cr, ok := findCR(crs, name)
 		if !ok {
-			continue
+			t.Fatalf("expected non-vsphere CredentialsRequest %q not found in manifest; file may have been renamed or removed", name)
 		}
 		if _, present := cr.Metadata.Annotations[vsphereComponentAnnotation]; present {
 			t.Errorf("non-vsphere CR %q must NOT carry %s", name, vsphereComponentAnnotation)
